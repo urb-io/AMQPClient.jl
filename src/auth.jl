@@ -8,4 +8,11 @@ function auth_resp_amqplain(auth_params::Dict{String,Any})
     TAMQPLongStr(bytes)
 end
 
-const AUTH_PROVIDERS = Dict{String,Function}("AMQPLAIN" => auth_resp_amqplain)
+function auth_resp_external(auth_params::Dict{String,Any})
+    TAMQPLongStr(UInt8[])
+end
+
+const AUTH_PROVIDERS = Dict{String,Function}(
+    "AMQPLAIN" => auth_resp_amqplain, 
+    "EXTERNAL" => auth_resp_external
+)
