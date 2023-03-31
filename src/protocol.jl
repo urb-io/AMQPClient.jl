@@ -205,6 +205,7 @@ mutable struct Connection
 
     sender::Union{Task, Nothing}
     receiver::Union{Task, Nothing}
+    tester::Union{Task, Nothing}
     heartbeater::Union{Task, Nothing}
 
     heartbeat_time_server::Float64
@@ -358,6 +359,7 @@ function connection_processor(c, name, fn)
             fn(c)
         end
     catch err
+        @error "!!! ERROR !!!" err
         reason = "$name task exiting."
         if isa(c, MessageConsumer)
             reason = reason * " Unhandled exception: $err"
@@ -430,6 +432,17 @@ function connection_receiver(c::Connection)
     end
     chan = channel(c, channelid)
     put!(chan.recvq, f)
+    nothing
+end
+
+function connection_tester(c::Connection)
+    sleep(10)
+
+    if isopen(c)
+        @info "[TESTER] Connection status ok" c.state 
+    else
+        @error "[TESTER] Connecion closed" c.state 
+    end
     nothing
 end
 
@@ -662,6 +675,7 @@ function connection(; virtualhost="/", host="localhost", port=AMQPClient.AMQP_DE
     conn.sock = (amqps !== nothing) ? setup_tls(sock, host, amqps) : sock
     conn.sender = @async   AMQPClient.connection_processor(conn, "ConnectionSender", AMQPClient.connection_sender)
     conn.receiver = @async AMQPClient.connection_processor(conn, "ConnectionReceiver", AMQPClient.connection_receiver)
+    conn.tester = @async AMQPClient.connection_processor(conn, "ConnectionTester", AMQPClient.connection_tester)
     chan.receiver = @async AMQPClient.connection_processor(chan, "ChannelReceiver($(chan.id))", AMQPClient.channel_receiver)
 
     # initiate handshake
@@ -702,6 +716,8 @@ end
 function close(chan::MessageChannel, handshake::Bool=true, by_peer::Bool=false, reply_code=ReplySuccess, reply_text="", class_id=0, method_id=0)
     (chan.state == CONN_STATE_CLOSED) && (return nothing)
 
+    @info "!!! Closing channel/connection !!!"
+
     conn = chan.conn
 
     if chan.id == DEFAULT_CHANNEL
@@ -731,6 +747,8 @@ end
 
 function close(conn::Connection, handshake::Bool=true, by_peer::Bool=false, reply_code=ReplySuccess, reply_text="", class_id=0, method_id=0)
     (conn.state == CONN_STATE_CLOSED) && (return nothing)
+
+    @info "!!! Closing channel/connection !!!"
 
     # send handshake if needed and when called the first time
     if conn.state != CONN_STATE_CLOSING
