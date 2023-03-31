@@ -228,7 +228,7 @@ mutable struct Connection
             Dict{Symbol,Any}(), Dict{String,Any}(), 0, 0,
             heartbeat, enable_heartbeat, keepalive, enable_keepalive,
             CONN_STATE_CLOSED, sendq, sendlck, Dict{TAMQPChannel, AbstractChannel}(),
-            nothing, nothing, nothing,
+            nothing, nothing, nothing, nothing,
             0.0, 0.0)
     end
 end
